@@ -1,0 +1,570 @@
+---
+title: "World Sustainability Dataset"
+author: "RACHEL ATOLAGBE"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("ggcorrplot")
+library(tidyverse)
+```
+
+
+
+## Importing Libaries
+
+```{r}
+# Loading required packages
+library(tidyverse)
+library(knitr)
+library(tibble)
+```
+
+## Data Loading
+
+In this section, the dataset is imported into the R environment, to allow for initial exploration and understanding of its fundamental characteristics. 
+
+```{r}
+# loading the dataset
+WorldSustainability_df <- read_csv("WorldSustainabilityDataset.csv", show_col_types = FALSE)
+```
+
+```{r}
+# View the structure and types of variables in the dataset
+glimpse(WorldSustainability_df)
+# to find the minimum and maximum year if the data
+min_year <- min(WorldSustainability_df$Year, na.rm = TRUE)
+max_year <- max(WorldSustainability_df$Year, na.rm = TRUE)
+
+min_year
+max_year
+```
+
+```{r}
+# identifying numeric variables
+numeric_vars <- select_if(WorldSustainability_df, is.numeric)
+names(numeric_vars)
+cat("Number of numerical variables:", ncol(numeric_vars), "\n")
+```
+
+```{r}
+# identifying categorical columns
+categorical_vars <- select_if(WorldSustainability_df, is.character)
+names(categorical_vars)
+cat("Number of categorical variables:", ncol(categorical_vars), "\n")
+```
+
+## Data Cleaning and Wrangling
+
+```{r}
+# Provides a statistical summary of all the variables in the WorldSustainability_df dataset
+summary(WorldSustainability_df)
+
+# calculating the total number of missing values in the dataset
+sum(is.na(WorldSustainability_df))
+```
+
+```{r}
+# Cleaning column names by removing indicator codes
+colnames(WorldSustainability_df) <- gsub("\\s*-\\s*[A-Z0-9\\.]+\\s*$", "", colnames(WorldSustainability_df))
+```
+
+```{r}
+# Calculating percentage of missing values for each column
+missing_percent <- colSums(is.na(WorldSustainability_df)) / nrow(WorldSustainability_df) * 100
+
+# to view the result as a sorted table (from highest to lowest)
+missing_percent_sorted <- sort(missing_percent, decreasing = TRUE)
+
+# to display the result
+missing_percent_sorted
+
+```
+
+```{r}
+# Selecting the 15 relevant variables for analysis
+selected_df <- WorldSustainability_df %>%
+  select(
+    "Country Name", 
+    "Year",
+    "Renewable energy consumption (% of total final energy consumption)",
+    "Renewable electricity output (% of total electricity output)",
+    "Annual production-based emissions of carbon dioxide (CO2), measured in million tonnes",
+    "GDP per capita (current US$)",
+    "Urban population (% of total population)",
+    "Compulsory education, duration (years)",
+    "School enrollment, secondary (% gross)",
+    "Income Classification (World Bank Definition)",
+    "Life expectancy at birth, total (years)",
+    "Access to electricity (% of population)",
+    "Total natural resources rents (% of GDP)",
+    "Population, total",
+    "Continent"
+  )
+```
+
+```{r}
+# to view the selected dataset
+cat("Number of rows:", nrow(selected_df), "\n")
+cat("Number of columns:", ncol(selected_df), "\n")
+
+# to check number of rows and columns
+dim(selected_df)
+
+```
+
+```{r}
+# Calculating total number of missing values in the dataset
+sum(is.na(selected_df))
+```
+
+```{r}
+# Counting the number of missing values in each column
+colSums(is.na(selected_df))
+```
+
+```{r}
+# Total percentage of missing values in the dataset
+total_missing_percent <- (sum(is.na(selected_df)) / (nrow(selected_df) * ncol(selected_df))) * 100
+total_missing_percent
+```
+
+```{r}
+# Removing rows with any missing values
+cleaned_df <- selected_df %>% drop_na()
+cleaned_df
+```
+
+```{r}
+# Checking for duplicate rows
+sum(duplicated(cleaned_df))
+```
+
+```{r}
+# Calculating total number of missing values 
+sum(is.na(cleaned_df))
+```
+
+
+```{r}
+# To check data types of all columns
+str(cleaned_df)
+```
+```{r}
+# Renaming variables name
+cleaned_df <- cleaned_df %>%
+  rename(
+    "Country" = "Country Name",
+    "Renewable energy consumption (%)" = "Renewable energy consumption (% of total final energy consumption)",
+    "Renewable electricity output (%)" = "Renewable electricity output (% of total electricity output)",
+    "Annual production-based emissions of carbon dioxide (in million tonnes)" = "Annual production-based emissions of carbon dioxide (CO2), measured in million tonnes",
+    "GDP per capita (US$)" = "GDP per capita (current US$)",
+    "Primary school enrollment (% gross)" = "School enrollment, primary (% gross)",
+    "c" = "School enrollment, secondary (% gross)",
+    "Income Classification" = "Income Classification (World Bank Definition)",
+    "Individuals using the Internet (%)" = "Individuals using the Internet (% of population)",
+    "Life expectancy (years)" = "Life expectancy at birth, total (years)",
+    "Population" = "Population, total",
+    "Compulsory education duration (years)" = "Compulsory education, duration (years)"
+  )
+
+```
+
+## Exploratory Data Analysis
+
+```{r}
+# Provides a statistical summary of Renewable energy consumption
+summary(cleaned_df$"Renewable energy consumption (%)")
+```
+
+```{r fig.cap="Figure 6.1: Distribution of Renewable Energy Consumption (%)"}
+# Plotting the distribution of Renewable Energy Consumption
+ggplot(cleaned_df, aes(x = `Renewable energy consumption (%)`)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Renewable Energy Consumption (%)",
+    x = "Renewable Energy Consumption (%)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Calculate IQR and bounds
+Q1 <- quantile(cleaned_df$`Renewable energy consumption (%)`, 0.25, na.rm = TRUE)
+Q3 <- quantile(cleaned_df$`Renewable energy consumption (%)`, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+# Identify potential outliers
+outliers <- cleaned_df %>%
+  filter(`Renewable energy consumption (%)` < lower_bound |
+         `Renewable energy consumption (%)` > upper_bound)
+
+# View number of outliers
+nrow(outliers)
+```
+
+```{r}
+# Filter outlier rows
+outliers <- cleaned_df %>%
+  filter(`Renewable energy consumption (%)` < lower_bound | `Renewable energy consumption (%)` > upper_bound)
+
+# View the countries considered outliers
+outliers %>%
+  select(Country, `Renewable energy consumption (%)`)
+
+```
+
+```{r}
+# Provides a statistical summary of Annual production of  carbon dioxide
+summary(cleaned_df$"Annual production-based emissions of carbon dioxide (in million tonnes)")
+```
+
+```{r fig.cap="Figure 6.2: Distribution of Annual production-based emissions of carbon dioxide"}
+# Plotting the distribution of CO2 emissions across all countries
+ggplot(cleaned_df, aes(x = `Annual production-based emissions of carbon dioxide (in million tonnes)`)) +
+  geom_histogram(binwidth = 100, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of CO2 Emissions (Million Tonnes)",
+    x = "CO2 Emissions",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Calculating Outliers
+Q1 <- quantile(cleaned_df$`Annual production-based emissions of carbon dioxide (in million tonnes)`, 0.25, na.rm = TRUE)
+Q3 <- quantile(cleaned_df$`Annual production-based emissions of carbon dioxide (in million tonnes)`, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+co2_outliers <- cleaned_df %>%
+  filter(`Annual production-based emissions of carbon dioxide (in million tonnes)` < lower_bound |
+         `Annual production-based emissions of carbon dioxide (in million tonnes)` > upper_bound)
+
+# View distinct outlier countries
+co2_outliers %>%
+  select(Country, Year, `Annual production-based emissions of carbon dioxide (in million tonnes)`)
+```
+
+```{r fig.cap="Figure 6.3: Distribution of CO2 Emissions"}
+# Removing outliers
+cleaned_df %>%
+  filter(`Annual production-based emissions of carbon dioxide (in million tonnes)` <= 1000) %>%
+  ggplot(aes(x = `Annual production-based emissions of carbon dioxide (in million tonnes)`)) +
+  geom_histogram(binwidth = 100, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of CO2 Emissions (Million Tonnes) After Removing Outliers",
+    x = "CO2 Emissions (Million Tonnes)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+# Provides a statistical summary of GDP per capita 
+summary(cleaned_df$`GDP per capita (US$)`)
+```
+
+```{r fig.cap="Figure 6.4: Distribution of GDP per Capita across all countries"}
+# Plotting the distribution of GDP per Capita
+ggplot(cleaned_df, aes(x = `GDP per capita (US$)`)) +
+  geom_histogram(binwidth = 2000, fill = "darkgreen", color = "white") +
+  labs(
+    title = "Distribution of GDP per Capita (US$)",
+    x = "GDP per Capita (US$)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+# Calculating outliers
+Q1 <- quantile(cleaned_df$`GDP per capita (US$)`, 0.25, na.rm = TRUE)
+Q3 <- quantile(cleaned_df$`GDP per capita (US$)`, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+gdp_outliers <- cleaned_df %>%
+  filter(`GDP per capita (US$)` < lower_bound | `GDP per capita (US$)` > upper_bound)
+
+# View outlier countries
+gdp_outliers %>% select(Country, Year, `GDP per capita (US$)`)
+```
+A total of 116 entries were identified as outliers in GDP per capita. These high outlier values correspond to countries with exceptionally strong economies, such as Luxembourg, United States, etc. Rather than indicating data errors, these figures represent real-world economic extremes and are essential to understanding global income diffrences. As such, the outliers are retained in the dataset to preserve the integrity of the analysis and to accurately reflect the economic diversity among countries.
+
+**D. Secondary school enrollment (% gross)**
+
+* **Step 1:** Summary Statistics
+
+```{r}
+# Provides a statistical summary of Secondary school enrollment
+summary(cleaned_df$`Secondary school enrollment (% gross)`)
+```
+The gross secondary school enrollment rate ranges from a minimum of 10.64% to a maximum of 163.93%. The median value is 90.53%, while the mean is slightly lower at 83.52%. The first quartile is 69.60%, and the third quartile is 101.05%, indicating that most countries fall within a fairly wide range of enrollment levels. Also, values exceeding 100% are possible in gross enrollment data, as they may include over-aged or under-aged students who are enrolled at the secondary level.
+
+* **Step 2:** Visualising the Distribution
+
+```{r fig.cap="Figure 6.5: Distribution of Secondary School Enrollment (% Gross)  across all countries"}
+ggplot(cleaned_df, aes(x = `Secondary school enrollment (% gross)`)) +
+  geom_histogram(binwidth = 5, fill = "purple", color = "white") +
+  labs(
+    title = "Distribution of Secondary School Enrollment (% Gross)",
+    x = "Secondary School Enrollment (% Gross)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# calculating Outliers
+Q1 <- quantile(cleaned_df$`Secondary school enrollment (% gross)`, 0.25, na.rm = TRUE)
+Q3 <- quantile(cleaned_df$`Secondary school enrollment (% gross)`, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+enrollment_outliers <- cleaned_df %>%
+  filter(`Secondary school enrollment (% gross)` < lower_bound | `Secondary school enrollment (% gross)` > upper_bound)
+
+# View outlier countries
+enrollment_outliers %>% select(Country, Year, `Secondary school enrollment (% gross)`)
+```
+
+```{r}
+# Provides a statistical summary of % of population with access to electricity
+summary(cleaned_df$`Access to electricity (% of population)`)
+```
+
+```{r fig.cap="Figure 6.6: Distribution of % of population with Access to electricity across all countries"}
+ggplot(cleaned_df, aes(x = `Access to electricity (% of population)`)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Access to Electricity (%)",
+    x = "Access to Electricity (%)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+```{r fig.cap="Figure 7.1: Relationship between Renewable Energy Consumption and CO₂ Emissions across Countries (2010–2015."}
+# Plotting the relationship between the two variables
+cleaned_df %>%
+  filter(
+    Year >= 2010 & Year <= 2015,
+    `Annual production-based emissions of carbon dioxide (in million tonnes)` <= 1000
+  ) %>%
+  mutate(Population_millions = Population / 1e6) %>%
+  ggplot(aes(
+    x = `Renewable energy consumption (%)`,
+    y = `Annual production-based emissions of carbon dioxide (in million tonnes)`,
+    size = Population_millions,
+    fill = Continent
+  )) +
+  geom_point(shape = 21, alpha = 0.6, color = "black") +
+  scale_size(range = c(2, 9), name = "Population (Millions)") +
+  scale_fill_manual(
+    name = "Continent",
+    values = c(
+      "Africa" = "green",
+      "Asia" = "pink",
+      "Europe" = "lightblue",
+      "North America" = "grey",
+      "Oceania" = "yellow",
+      "South America" = "orange"
+    )
+  ) +
+  labs(
+    title = "Renewable Energy vs CO2 Emissions (Global Overview, 2010–2015)",
+    x = "Renewable Energy Consumption (%)",
+    y = "CO2 Emissions (Million Tonnes)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major = element_line(color = "grey85"),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()
+  )
+```
+
+```{r fig.cap="Figure 7.2: Yearly Comparison of Renewable Energy Consumption and CO₂ Emissions by Country (2010–2015)."}
+# Filter the dataset with emissions threshold included
+bubble_data <- cleaned_df %>%
+  filter(
+    Year %in% 2010:2015,
+    !is.na(`Renewable energy consumption (%)`),
+    !is.na(`Annual production-based emissions of carbon dioxide (in million tonnes)`),
+    !is.na(Population),
+    !is.na(Continent),
+    `Annual production-based emissions of carbon dioxide (in million tonnes)` <= 1000
+  ) %>%
+  mutate(Population_millions = Population / 1e6)
+
+# Plot
+ggplot(bubble_data, aes(
+  x = `Renewable energy consumption (%)`,
+  y = `Annual production-based emissions of carbon dioxide (in million tonnes)`,
+  size = Population_millions,
+  fill = Continent
+)) +
+  geom_point(shape = 21, alpha = 0.7, color = "black") +
+  facet_wrap(~ Year, ncol = 3) +
+  scale_size(range = c(2, 9), name = "Population (Millions)") +
+  scale_fill_manual(
+    name = "Continent",
+    values = c(
+      "Africa" = "green",
+      "Asia" = "pink",
+      "Europe" = "lightblue",
+      "North America" = "grey",
+      "Oceania" = "yellow",
+      "South America" = "orange"
+    )
+  ) +
+  labs(
+    title = "Renewable Energy vs CO2 Emissions by Countries (2010–2015)",
+    x = "Renewable Energy Consumption (%)",
+    y = "CO2 Emissions (Million Tonnes)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA),
+    strip.background = element_rect(fill = "white", color = "black"),
+    strip.text = element_text(face = "bold")
+  )
+
+```
+
+```{r fig.cap="Figure 7.3: Relationship Between Secondary School Enrollment and GDP per Capita by Development Level"}
+# Combine mutate + scatter plot
+cleaned_df %>%
+  mutate(
+    Development_Level = case_when(
+      `Income Classification` %in% c("High income", "Upper-middle income") ~ "Developed",
+      `Income Classification` %in% c("Lower-middle income", "Low income") ~ "Developing",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  ggplot(aes(
+    x = `Secondary school enrollment (% gross)`,
+    y = `GDP per capita (US$)`,
+    color = Development_Level
+  )) +
+  geom_point(size = 2, alpha = 0.7) +
+  scale_y_log10(labels = scales::comma) +
+  scale_color_manual(
+    values = c("Developed" = "blue", "Developing" = "red"),
+    name = "Development Level"
+  ) +
+  labs(
+    title = "Investment in Education vs GDP per Capita",
+    subtitle = "Secondary School Enrollment and Economic Growth by Development Level",
+    x = "Secondary School Enrollment (% Gross)",
+    y = "GDP per Capita (US$)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black"),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 12)
+  )
+
+
+```
+
+```{r fig.cap="Figure 7.4: Top 10 Countries with the Lowest Average Access to Electricity (2008–2018)}
+# Filter for years 2009–2019 and compute average access
+electricity_avg <- cleaned_df %>%
+  filter(Year >= 2008 & Year <= 2018) %>%
+  group_by(`Country`) %>%
+  summarise(avg_access = mean(`Access to electricity (% of population)`, na.rm = TRUE)) %>%
+  arrange(avg_access) %>%
+  slice(1:10)
+
+# Convert country to factor to preserve order in plot
+electricity_avg <- electricity_avg %>%
+  mutate(`Country` = factor(`Country`, levels = rev(`Country`)))
+
+# Plot
+ggplot(electricity_avg, aes(x = avg_access, y = `Country`)) +
+  geom_bar(stat = "identity", fill = "blue", width = 0.6) +
+  geom_text(aes(label = paste0(round(avg_access, 1), "%")),
+            hjust = -0.1,
+            size = 4.2) +
+  scale_x_continuous(limits = c(0, 35), expand = c(0, 0)) +
+  labs(
+    title = "Countries with the Lowest Access to Electricity",
+    subtitle = "Based on Average Access Over 2008-2018 Period",
+    x = "Avg. Access to Electricity (%)",
+    y = "Country"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 11, margin = margin(b = 10))
+  )
+```
+
+```{r fig.cap="Figure 7.5: Electricity Access vs GDP per Capita in 2015}
+# Filter the data for the selected year (e.g., 2018)
+electricity_data <- cleaned_df %>%
+  filter(Year == 2015, 
+         !is.na(`Access to electricity (% of population)`),
+         !is.na(`GDP per capita (US$)`))
+
+# Create scatter plot with editable colors
+ggplot(electricity_data, aes(x = `Access to electricity (% of population)`, 
+                             y = `GDP per capita (US$)`, 
+                             color = Development_Level)) +
+  geom_jitter(width = 1, height = 0, alpha = 0.8, size = 2) +
+  scale_y_log10(labels = scales::comma) +
+  scale_color_manual(
+    values = c(
+      "Developed" = "blue",     # Change to any hex or color name
+      "Developing" = "red"     # Change to any hex or color name
+    )
+  ) +
+  labs(
+    title = "Electricity Access vs GDP per Capita",
+    subtitle = "2015: Developed vs Developing Countries",
+    x = "Access to Electricity (%)",
+    y = "GDP per Capita (US$)",
+    color = "Development Level"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(face = "bold")
+  )
+
+```
+
+## Conclusion
+This project focused on analysing global sustainability indicators across countries between 2000 and 2018 using R. The analysis involved cleaning and transforming the dataset, handling missing values, and selecting key economic, environmental, and social variables. Exploratory analysis and visualisations were then used to uncover global patterns and relationships among indicators such as renewable energy use, CO₂ emissions, GDP growth, and access to electricity.  
+
+The results showed clear disparities in sustainability progress across regions. Developed economies generally exhibited higher GDP growth and electricity access but also higher CO₂ emissions, while developing nations showed gradual improvements in renewable energy use. Overall, this project highlights the value of using data-driven approaches to evaluate global sustainability efforts and provides a foundation for further exploration into factors influencing environmental and economic development worldwide.
+
